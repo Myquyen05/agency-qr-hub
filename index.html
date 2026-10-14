@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agency QR Hub - Hệ Thống Quản Lý Mã QR Động</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- QRCode JS Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+
+    <!-- Top Navigation -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white font-black text-xl shadow-md shadow-indigo-100">
+                        QR
+                    </div>
+                    <div>
+                        <span class="font-extrabold text-lg tracking-tight text-slate-900">AgencyQR<span class="text-indigo-600">.Hub</span></span>
+                        <span class="ml-2 text-xs bg-indigo-50 text-indigo-700 font-semibold px-2 py-0.5 rounded-full border border-indigo-200">Dynamic Multi-Tenant</span>
+                    </div>
+                </div>
+
+                <!-- Agency Selector -->
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
+                        <span class="text-xs font-semibold text-slate-500 px-2">Agency / Client:</span>
+                        <select id="agencySelect" onchange="onAgencyChange()" class="bg-white text-slate-800 text-sm font-semibold rounded-md px-3 py-1.5 border-0 shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+                    <button onclick="openNewAgencyModal()" class="text-xs bg-slate-800 hover:bg-slate-900 text-white font-medium px-3 py-2 rounded-lg transition-colors">
+                        + Thêm Agency
+                    </button>
+                    <button onclick="openNewQRModal()" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-lg shadow-sm shadow-indigo-200 transition-all flex items-center space-x-1">
+                        <span>+ Tạo QR Động Mới</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        <!-- Header Overview -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div>
+                <div class="flex items-center space-x-3">
+                    <h1 id="currentAgencyName" class="text-2xl font-black text-slate-900">Đang tải...</h1>
+                    <span id="currentAgencyIndustry" class="text-xs font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full"></span>
+                </div>
+                <p class="text-slate-500 text-sm mt-1">Đổi link đích tức thì mọi lúc mọi nơi mà không cần in lại mã QR vật lý.</p>
+            </div>
+            <!-- Quick Stats -->
+            <div class="grid grid-cols-3 gap-3 md:gap-6 text-center">
+                <div class="bg-indigo-50/50 border border-indigo-100 rounded-xl px-4 py-3">
+                    <div class="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Mã QR</div>
+                    <div id="statTotalQR" class="text-2xl font-black text-indigo-900 mt-0.5">0</div>
+                </div>
+                <div class="bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3">
+                    <div class="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Lượt Quét</div>
+                    <div id="statTotalScans" class="text-2xl font-black text-emerald-900 mt-0.5">0</div>
+                </div>
+                <div class="bg-amber-50/50 border border-amber-100 rounded-xl px-4 py-3">
+                    <div class="text-xs font-semibold text-amber-600 uppercase tracking-wider">Tình trạng</div>
+                    <div class="text-sm font-bold text-amber-900 mt-1.5 flex items-center justify-center space-x-1">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span>100% Online</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table of QR Codes -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">Danh Sách Mã QR Động Đang Hoạt Động</h2>
+                    <p class="text-xs text-slate-500">Bấm nút "Đổi link đích" để chuyển hướng sang trang mới trong 1 giây.</p>
+                </div>
+                <button onclick="loadQRCodes()" class="text-xs text-slate-500 hover:text-indigo-600 font-semibold flex items-center space-x-1">
+                    <span>↻ Làm mới danh sách</span>
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-600">
+                    <thead class="bg-slate-50 text-slate-500 uppercase text-xs font-bold tracking-wider border-b border-slate-100">
+                        <tr>
+                            <th class="px-6 py-3.5">Chiến dịch & Mã QR</th>
+                            <th class="px-6 py-3.5">Link rút gọn trung gian</th>
+                            <th class="px-6 py-3.5">Link đích chuyển hướng</th>
+                            <th class="px-6 py-3.5 text-center">Lượt quét</th>
+                            <th class="px-6 py-3.5 text-center">Trạng thái</th>
+                            <th class="px-6 py-3.5 text-right">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="qrTableBody" class="divide-y divide-slate-100 font-medium">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Real-time Scan Activity Log -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900">Nhật Ký Quét Thực Tế (Live Scan Logs)</h3>
+                    <p class="text-xs text-slate-500">Ghi nhận tức thì khi người dùng dùng camera quét mã QR.</p>
+                </div>
+                <span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-semibold">Tự động lưu vào SQLite</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-600">
+                    <thead class="bg-slate-50 text-slate-500 font-semibold border-y border-slate-100">
+                        <tr>
+                            <th class="px-4 py-2.5">Thời gian</th>
+                            <th class="px-4 py-2.5">Mã QR</th>
+                            <th class="px-4 py-2.5">Thiết bị</th>
+                            <th class="px-4 py-2.5">Địa chỉ IP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTableBody" class="divide-y divide-slate-100 font-mono text-[11px]">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal 1: Tạo QR Động Mới -->
+    <div id="modalCreateQR" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="text-lg font-bold text-slate-900">Tạo Mã QR Động Cho Agency</h3>
+                <button onclick="closeModal('modalCreateQR')" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            <div class="space-y-3 text-sm">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Tên chiến dịch / Vị trí đặt QR</label>
+                    <input type="text" id="newQRTitle" placeholder="Ví dụ: Standee Hội trường A, Menu Bàn 05..." class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Mã Slug trung gian (Định danh trên URL)</label>
+                    <div class="flex rounded-lg shadow-sm">
+                        <span class="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-slate-200 bg-slate-50 text-slate-500 text-xs">/r/</span>
+                        <input type="text" id="newQRSlug" placeholder="event-2026" class="w-full px-3 py-2 border border-slate-200 rounded-r-lg focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-xs">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Đường link đích chuyển hướng</label>
+                    <input type="url" id="newQRTarget" placeholder="https://example.com/landing-page-khach-hang" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-mono">
+                    <p class="text-[11px] text-slate-500 mt-1">Sau này có thể đổi sang bất kỳ link nào khác mà mã QR in ra vẫn giữ nguyên.</p>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3 pt-3 border-t border-slate-100">
+                <button onclick="closeModal('modalCreateQR')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Hủy</button>
+                <button onclick="submitNewQR()" class="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-md shadow-indigo-200">Tạo Mã QR</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: Đổi Link Đích (Cốt lõi Dynamic QR) -->
+    <div id="modalEditQR" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900">Đổi Đường Link Đích</h3>
+                    <p id="editQRSubtitle" class="text-xs text-indigo-600 font-mono"></p>
+                </div>
+                <button onclick="closeModal('modalEditQR')" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            <div class="space-y-3 text-sm">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Nhập Link Đích Mới</label>
+                    <textarea id="editQRTarget" rows="3" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-mono"></textarea>
+                    <div class="mt-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-[11px]">
+                        ✓ <strong>Không cần in lại mã QR:</strong> Ngay khi bấm cập nhật, bất kỳ ai quét mã QR cũ đã in trên standee/poster sẽ được chuyển hướng ngay sang link mới này!
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3 pt-3 border-t border-slate-100">
+                <button onclick="closeModal('modalEditQR')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Hủy</button>
+                <button onclick="submitEditQR()" class="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-md shadow-emerald-200">Cập Nhật Ngay Lập Tức</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 3: Xem & Tải Mã QR PNG Chất Lượng Cao -->
+    <div id="modalViewQR" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 id="viewQRTitle" class="text-sm font-bold text-slate-900 truncate">Mã QR Động</h3>
+                <button onclick="closeModal('modalViewQR')" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            
+            <!-- Canvas QR Holder -->
+            <div class="flex justify-center p-4 bg-slate-50 border border-slate-100 rounded-xl">
+                <div id="qrcodeCanvas"></div>
+            </div>
+            
+            <div class="bg-slate-100 p-2.5 rounded-lg text-xs font-mono text-slate-700 select-all" id="viewQRUrl">
+                http://...
+            </div>
+
+            <div class="flex flex-col gap-2 pt-2">
+                <button onclick="downloadQRImage()" class="w-full py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-md shadow-indigo-200 flex items-center justify-center space-x-2">
+                    <span>⬇ Tải Ảnh QR Độ Nét Cao (PNG)</span>
+                </button>
+                <button onclick="copyQRLink()" class="w-full py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg">
+                    📋 Sao chép Link Quét
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 4: Tạo Agency mới -->
+    <div id="modalNewAgency" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="text-base font-bold text-slate-900">Thêm Agency / Khách Hàng Mới</h3>
+                <button onclick="closeModal('modalNewAgency')" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            <div class="space-y-3 text-sm">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Tên Agency / Nhãn hàng</label>
+                    <input type="text" id="newAgencyName" placeholder="Ví dụ: Highlands Coffee, VinFast..." class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Lĩnh vực / Phân loại</label>
+                    <input type="text" id="newAgencyIndustry" placeholder="Ví dụ: Bán lẻ, F&B, Sự kiện, Bất động sản..." class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3 pt-3 border-t border-slate-100">
+                <button onclick="closeModal('modalNewAgency')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Hủy</button>
+                <button onclick="submitNewAgency()" class="px-5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-md">Tạo Agency</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        let currentAgencies = [];
+        let selectedAgencyId = 1;
+        let activeQRForEdit = null;
+        let qrCodeInstance = null;
+
+        // Khởi động
+        window.addEventListener('DOMContentLoaded', () => {
+            loadAgencies();
+            loadLogs();
+            setInterval(loadLogs, 15000); // Tự động cập nhật log sau mỗi 15s
+        });
+
+        // 1. Tải danh sách Agencies
+        async function loadAgencies() {
+            try {
+                const res = await fetch('/api/agencies');
+                currentAgencies = await res.json();
+                const select = document.getElementById('agencySelect');
+                select.innerHTML = '';
+                
+                currentAgencies.forEach(agency => {
+                    const opt = document.createElement('option');
+                    opt.value = agency.id;
+                    opt.textContent = `${agency.name} (${agency.qr_count} QR)`;
+                    select.appendChild(opt);
+                });
+
+                if (currentAgencies.length > 0) {
+                    selectedAgencyId = currentAgencies[0].id;
+                    updateAgencyHeader();
+                    loadQRCodes();
+                }
+            } catch (err) {
+                console.error('Lỗi khi tải agencies:', err);
+            }
+        }
+
+        function onAgencyChange() {
+            selectedAgencyId = parseInt(document.getElementById('agencySelect').value);
+            updateAgencyHeader();
+            loadQRCodes();
+        }
+
+        function updateAgencyHeader() {
+            const agency = currentAgencies.find(a => a.id === selectedAgencyId);
+            if (agency) {
+                document.getElementById('currentAgencyName').textContent = agency.name;
+                document.getElementById('currentAgencyIndustry').textContent = agency.industry || 'Agency';
+                document.getElementById('statTotalQR').textContent = agency.qr_count || 0;
+                document.getElementById('statTotalScans').textContent = agency.total_scans || 0;
+            }
+        }
+
+        // 2. Tải danh sách QR codes
+        async function loadQRCodes() {
+            try {
+                const res = await fetch(`/api/qrs?agency_id=${selectedAgencyId}`);
+                const qrs = await res.json();
+                const tbody = document.getElementById('qrTableBody');
+                tbody.innerHTML = '';
+
+                if (qrs.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-slate-400">Chưa có mã QR nào. Bấm <strong>"+ Tạo QR Động Mới"</strong> để bắt đầu!</td></tr>`;
+                    return;
+                }
+
+                qrs.forEach(qr => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50/80 transition-colors';
+                    const redirectUrl = `${window.location.origin}/r/${qr.slug}`;
+                    tr.innerHTML = `
+                        <td class="px-6 py-4">
+                            <div class="font-bold text-slate-900">${qr.title}</div>
+                            <div class="text-xs text-slate-400 font-normal">Chiến dịch: ${qr.campaign || 'Chung'}</div>
+                        </td>
+                        <td class="px-6 py-4 font-mono text-xs">
+                            <a href="${redirectUrl}" target="_blank" class="text-indigo-600 hover:underline font-bold">/r/${qr.slug}</a>
+                        </td>
+                        <td class="px-6 py-4 max-w-xs truncate text-xs font-mono text-slate-600" title="${qr.target_url}">
+                            <a href="${qr.target_url}" target="_blank" class="hover:text-indigo-600">${qr.target_url}</a>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700">
+                                ${qr.scan_count} lượt
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${qr.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'}">
+                                ${qr.is_active ? '● Hoạt động' : 'Tạm dừng'}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-right space-x-2">
+                            <button onclick="openEditModal('${qr.slug}', '${qr.target_url.replace(/'/g, "\\'")}')" class="px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md transition-colors">
+                                ✎ Đổi Link Đích
+                            </button>
+                            <button onclick="openViewQRModal('${qr.title}', '${qr.slug}')" class="px-2.5 py-1 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md transition-colors">
+                                ⌗ Xem & Tải QR
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                console.error('Lỗi khi tải mã QR:', err);
+            }
+        }
+
+        // 3. Tải Scan Logs
+        async function loadLogs() {
+            try {
+                const res = await fetch('/api/logs');
+                const logs = await res.json();
+                const tbody = document.getElementById('logsTableBody');
+                tbody.innerHTML = '';
+                logs.slice(0, 8).forEach(log => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="px-4 py-2 text-slate-500">${log.scanned_at}</td>
+                        <td class="px-4 py-2 font-bold text-indigo-600">/r/${log.slug}</td>
+                        <td class="px-4 py-2 text-slate-700">${log.device_type}</td>
+                        <td class="px-4 py-2 text-slate-400">${log.ip_address}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                console.error('Lỗi khi tải log:', err);
+            }
+        }
+
+        // 4. Các hàm Modal
+        function openNewQRModal() {
+            document.getElementById('newQRTitle').value = '';
+            document.getElementById('newQRSlug').value = 'qr-' + Math.random().toString(36).substring(2, 7);
+            document.getElementById('newQRTarget').value = '';
+            document.getElementById('modalCreateQR').classList.remove('hidden');
+        }
+
+        function openNewAgencyModal() {
+            document.getElementById('newAgencyName').value = '';
+            document.getElementById('newAgencyIndustry').value = '';
+            document.getElementById('modalNewAgency').classList.remove('hidden');
+        }
+
+        function openEditModal(slug, targetUrl) {
+            activeQRForEdit = slug;
+            document.getElementById('editQRSubtitle').textContent = `Mã slug: /r/${slug}`;
+            document.getElementById('editQRTarget').value = targetUrl;
+            document.getElementById('modalEditQR').classList.remove('hidden');
+        }
+
+        function openViewQRModal(title, slug) {
+            const redirectUrl = `${window.location.origin}/r/${slug}`;
+            document.getElementById('viewQRTitle').textContent = title;
+            document.getElementById('viewQRUrl').textContent = redirectUrl;
+            
+            const container = document.getElementById('qrcodeCanvas');
+            container.innerHTML = '';
+            qrCodeInstance = new QRCode(container, {
+                text: redirectUrl,
+                width: 200,
+                height: 200,
+                colorDark : "#0f172a",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+
+            document.getElementById('modalViewQR').classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        // 5. Thao tác gửi API
+        async function submitNewQR() {
+            const title = document.getElementById('newQRTitle').value.trim();
+            const slug = document.getElementById('newQRSlug').value.trim();
+            const target_url = document.getElementById('newQRTarget').value.trim();
+
+            if (!title || !slug || !target_url) {
+                alert('Vui lòng nhập đầy đủ các trường thông tin!');
+                return;
+            }
+
+            const res = await fetch('/api/qrs', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    agency_id: selectedAgencyId,
+                    title,
+                    slug,
+                    target_url
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                closeModal('modalCreateQR');
+                loadAgencies();
+                loadQRCodes();
+            } else {
+                alert(data.error || 'Có lỗi xảy ra khi tạo QR!');
+            }
+        }
+
+        async function submitEditQR() {
+            const newUrl = document.getElementById('editQRTarget').value.trim();
+            if (!newUrl) {
+                alert('Vui lòng nhập link đích mới!');
+                return;
+            }
+
+            const res = await fetch(`/api/qrs/${activeQRForEdit}/update`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ target_url: newUrl })
+            });
+
+            if (res.ok) {
+                closeModal('modalEditQR');
+                loadQRCodes();
+                alert('✓ Đã cập nhật đường link đích thành công!');
+            } else {
+                alert('Lỗi khi cập nhật link!');
+            }
+        }
+
+        async function submitNewAgency() {
+            const name = document.getElementById('newAgencyName').value.trim();
+            const industry = document.getElementById('newAgencyIndustry').value.trim();
+            if (!name) {
+                alert('Vui lòng nhập tên agency!');
+                return;
+            }
+
+            const res = await fetch('/api/agencies', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ name, industry })
+            });
+
+            if (res.ok) {
+                closeModal('modalNewAgency');
+                await loadAgencies();
+                alert('✓ Đã tạo Agency mới thành công!');
+            }
+        }
+
+        function downloadQRImage() {
+            const canvas = document.querySelector('#qrcodeCanvas canvas');
+            if (canvas) {
+                const link = document.createElement('a');
+                link.download = `qrcode-${Date.now()}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } else {
+                // Thử tìm thẻ img do QRCode.js tạo
+                const img = document.querySelector('#qrcodeCanvas img');
+                if (img) {
+                    const link = document.createElement('a');
+                    link.download = `qrcode-${Date.now()}.png`;
+                    link.href = img.src;
+                    link.click();
+                }
+            }
+        }
+
+        function copyQRLink() {
+            const url = document.getElementById('viewQRUrl').textContent.trim();
+            navigator.clipboard.writeText(url).then(() => {
+                alert('Đã sao chép link quét vào clipboard!');
+            });
+        }
+    </script>
+</body>
+</html>
