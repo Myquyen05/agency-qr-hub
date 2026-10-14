@@ -168,7 +168,7 @@ class QRRequestHandler(http.server.BaseHTTPRequestHandler):
 
         # 2. Trang chủ Dashboard
         if path == '/' or path == '/index.html':
-            template_path = os.path.join(os.path.dirname(__file__), 'templates', 'index.html')
+     template_path = 'index.html' if os.path.exists('index.html') else os.path.join(os.path.dirname(__file__), 'templates', 'index.html')
             if os.path.exists(template_path):
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/html; charset=utf-8')
